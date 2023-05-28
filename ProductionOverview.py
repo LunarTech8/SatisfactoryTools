@@ -12,28 +12,63 @@ RECIPES_FORMAT_EMPTY_ITEM = '-'
 RECIPE_BOOK_WINDOW_SIZE = (910, 500)
 RECIPE_BOOK_GRID_COLUMN_NAMES = ('Usage count:', 'Products:', 'Educts:')
 RECIPE_BOOK_GRID_COLUMN_WIDTHS = (10, 40, 75)
-ITEM_STOCK_WINDOW_SIZE = (400, 500)
-ITEM_STOCK_GRID_COLUMN_NAMES = ('Name:', 'Balance:', 'Belt level:')
-ITEM_STOCK_GRID_COLUMN_WIDTHS = (25, 17, 10)
+ITEM_STOCK_WINDOW_SIZE = (412, 500)
+ITEM_STOCK_GRID_COLUMN_NAMES = ('Name:', 'Balance:', 'Belt/Pipe level:')
+ITEM_STOCK_GRID_COLUMN_WIDTHS = (25, 17, 12)
 ITEM_STOCK_DISPLAY_PRECISION = 3
 # Global variables:
 recipeBook = None
 itemStock = None
 allItems = set()
 
-def itemCount2BeltLevel(itemCount):
-	if itemCount <= 60:
-		return 1
-	elif itemCount <= 120:
-		return 2
-	elif itemCount <= 270:
-		return 3
-	elif itemCount <= 480:
-		return 4
-	elif itemCount <= 960:
-		return 5
+def itemCount2BeltLevelStr(itemCount, usePipe):
+	if usePipe:
+		suffix = ' [P]'
+		if itemCount <= 0:
+			return '0' + suffix
+		elif itemCount <= 300:
+			return '1' + suffix
+		elif itemCount <= 600:
+			return '2' + suffix
+		elif itemCount <= 600+300:
+			return '2+1' + suffix
+		elif itemCount <= 600+600:
+			return '2+2' + suffix
+		elif itemCount <= 600+600+300:
+			return '2+2+1' + suffix
+		elif itemCount <= 600+600+600:
+			return '2+2+2' + suffix
 	else:
-		return 0  # One belt not enough
+		suffix = ' [B]'
+		if itemCount <= 0:
+			return '0' + suffix
+		elif itemCount <= 60:
+			return '1' + suffix
+		elif itemCount <= 120:
+			return '2' + suffix
+		elif itemCount <= 270:
+			return '3' + suffix
+		elif itemCount <= 480:
+			return '4' + suffix
+		elif itemCount <= 960:
+			return '5' + suffix
+		elif itemCount <= 960+60:
+			return '5+1' + suffix
+		elif itemCount <= 960+120:
+			return '5+2' + suffix
+		elif itemCount <= 960+270:
+			return '5+3' + suffix
+		elif itemCount <= 960+480:
+			return '5+4' + suffix
+		elif itemCount <= 960+960:
+			return '5+5' + suffix
+	return 'INVALID'
+
+def isUsingPipe(item):
+	if item in ('Water', 'NitrogenGas', 'SulfuricAcid', 'CrudeOil', 'HeavyOilResidue', 'AluminaSolution', 'Fuel'):
+		return True
+	else:
+		return False
 
 def itemDict2Str(itemDict):
 	itemFields = []
@@ -137,22 +172,39 @@ class RecipeBook:
 				break
 
 class ItemStock:
+	EPSILON = pow(10, -ITEM_STOCK_DISPLAY_PRECISION)
+
 	def __init__(self, root):
 		self.consumption = {}
 		self.production = {}
 		self.balanceStrVars = {}
+		self.beltLevelStrVars = {}
 		for item in sorted(allItems):
 			self.balanceStrVars[item] = tk.StringVar(root, '0')
+			self.beltLevelStrVars[item] = tk.StringVar(root, '0')
 		self.calcStock()
 
 	def getBalanceStrVar(self, item):
 		return self.balanceStrVars[item]
+
+	def getBeltLevelStrVar(self, item):
+		return self.beltLevelStrVars[item]
 
 	def getProduction(self, item):
 		return self.production.get(item, 0)
 
 	def getItems(self):
 		return self.balanceStrVars.keys()
+
+	def prettyFloatStr(self, value):
+		roundedValue = round(value, ITEM_STOCK_DISPLAY_PRECISION)
+		roundedValueStr = str(roundedValue)
+		if roundedValue < ItemStock.EPSILON and roundedValue > -ItemStock.EPSILON:
+			return '0.0'
+		elif len(roundedValueStr) >= 5 and roundedValueStr[-1] == '9' and roundedValueStr[-4] == '.':
+			return str(roundedValue + ItemStock.EPSILON)
+		else:
+			return roundedValueStr
 
 	def calcStock(self):
 		self.consumption.clear()
@@ -163,7 +215,9 @@ class ItemStock:
 			for item in recipeBook.getProducts(i):
 				self.production[item] = self.production.get(item, 0) + recipeBook.getProducts(i)[item] * recipeBook.getUsageCount(i)
 		for item, balanceStrVar in self.balanceStrVars.items():
-			balanceStrVar.set(str(round(self.production.get(item, 0) - self.consumption.get(item, 0), ITEM_STOCK_DISPLAY_PRECISION)))
+			balanceStrVar.set(self.prettyFloatStr(self.production.get(item, 0) - self.consumption.get(item, 0)))
+		for item, beltLevelStrVar in self.beltLevelStrVars.items():
+			beltLevelStrVar.set(itemCount2BeltLevelStr(self.production.get(item, 0), isUsingPipe(item)))
 
 class GridField():
 	class Type(Enum):
@@ -173,10 +227,7 @@ class GridField():
 		DigitEntry = auto()
 
 	def isFloatOrEmpty(text):
-		if str(text) == '' or (text.lstrip('-').replace('.', '').isdigit() and text.count('.') <= 1):
-			return True
-		else:
-			return False
+		return str(text) == '' or (text.lstrip('-').replace('.', '').isdigit() and text.count('.') <= 1)
 
 	def add(root, row, column, width, type, arg=None, callback=None):
 		if type == GridField.Type.DigitEntry:
@@ -260,7 +311,7 @@ def createItemsBalanceWindow(root):
 		column += 1
 		GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.DynamicLabel, itemStock.getBalanceStrVar(item))
 		column += 1
-		GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.Label, str(itemCount2BeltLevel(itemStock.getProduction(item))))
+		GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.DynamicLabel, itemStock.getBeltLevelStrVar(item))
 
 # TODO: use to improve init placement of windows
 # def centerWindow(root):
