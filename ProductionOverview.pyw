@@ -231,7 +231,8 @@ class GridField():
 
 	def add(root, row, column, width, type, arg=None, callback=None):
 		if type == GridField.Type.DigitEntry:
-			arg.trace_add('write', callback)
+			if callback != None:
+				arg.trace_add('write', callback)
 			vcmd = (root.register(GridField.isFloatOrEmpty), '%P')
 			gridField = tk.Entry(root, justify='center', width=width, textvariable=arg, validate='key', validatecommand=vcmd)
 		elif type == GridField.Type.Label:
