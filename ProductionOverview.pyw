@@ -220,6 +220,8 @@ class ItemStock:
 			beltLevelStrVar.set(itemCount2BeltLevelStr(self.production.get(item, 0), isUsingPipe(item)))
 
 class GridField():
+	GRID_FIELD_ENTRY_WIDTH_ADDITION = 2
+
 	class Type(Enum):
 		Header = auto()
 		Label = auto()
@@ -231,10 +233,10 @@ class GridField():
 
 	def add(root, row, column, width, type, arg=None, callback=None):
 		if type == GridField.Type.DigitEntry:
-			if callback != None:
+			if callback is not None:
 				arg.trace_add('write', callback)
 			vcmd = (root.register(GridField.isFloatOrEmpty), '%P')
-			gridField = tk.Entry(root, justify='center', width=width, textvariable=arg, validate='key', validatecommand=vcmd)
+			gridField = tk.Entry(root, justify='center', width=width+GridField.GRID_FIELD_ENTRY_WIDTH_ADDITION, textvariable=arg, validate='key', validatecommand=vcmd)
 		elif type == GridField.Type.Label:
 			gridField = tk.Label(root, text=arg, borderwidth=2, relief='sunken', width=width)
 		elif type == GridField.Type.DynamicLabel:
@@ -248,71 +250,71 @@ class GridField():
 def createProductionRecipesWindow(root):
 	global recipeBook
 	root.title('Production Recipes')
-	root.geometry(str(RECIPE_BOOK_WINDOW_SIZE[0]) + 'x' + str(RECIPE_BOOK_WINDOW_SIZE[1]))
+	root.geometry(f"{RECIPE_BOOK_WINDOW_SIZE[0]}x{RECIPE_BOOK_WINDOW_SIZE[1]}")
 	root.resizable(0, 1)
-	# Set up scrollable main frame:
-	outerFrame = tk.Frame(root)
-	outerFrame.pack(fill=tk.BOTH, expand=1)
-	outerCanvas = tk.Canvas(outerFrame)
+	# Set up main frame with fixed header frame and scrollable content frame:
+	contentFrame = tk.Frame(root)
+	contentFrame.pack(fill=tk.BOTH, expand=1)
+	headerFrame = tk.Frame(contentFrame)
+	headerFrame.pack(fill=tk.X)
+	mainFrame = tk.Frame(contentFrame)
+	mainFrame.pack(fill=tk.BOTH, expand=1)
+	outerCanvas = tk.Canvas(mainFrame)
 	outerCanvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-	outerScrollbar = tk.Scrollbar(outerFrame, orient=tk.VERTICAL, command=outerCanvas.yview)
+	outerScrollbar = tk.Scrollbar(mainFrame, orient=tk.VERTICAL, command=outerCanvas.yview)
 	outerScrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 	outerCanvas.configure(yscrollcommand=outerScrollbar.set)
 	outerCanvas.bind('<Configure>', lambda event: outerCanvas.configure(scrollregion=outerCanvas.bbox('all')))
-	mainFrame = tk.Frame(outerCanvas)
-	outerCanvas.create_window((0, 0), window=mainFrame, anchor='nw')
+	contentFrame = tk.Frame(outerCanvas)
+	outerCanvas.create_window((0, 0), window=contentFrame, anchor='nw')
 	# Create recipe book grid field:
-	recipeBook = RecipeBook(mainFrame)
+	recipeBook = RecipeBook(contentFrame)
 	row = 0
-	column = 0
-	GridField.add(mainFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, RECIPE_BOOK_GRID_COLUMN_NAMES[column])
-	column += 1
-	GridField.add(mainFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, RECIPE_BOOK_GRID_COLUMN_NAMES[column])
-	column += 1
-	GridField.add(mainFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, RECIPE_BOOK_GRID_COLUMN_NAMES[column])
+	for column, name in enumerate(RECIPE_BOOK_GRID_COLUMN_NAMES):
+		GridField.add(headerFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, name)
 	for i in range(recipeBook.getSize()):
 		row = i + 1
 		column = 0
-		GridField.add(mainFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.DigitEntry, recipeBook.getUsageCountStrVar(i), recipeBook.usageCountCallback)
+		GridField.add(contentFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.DigitEntry, recipeBook.getUsageCountStrVar(i), recipeBook.usageCountCallback)
 		column += 1
-		GridField.add(mainFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Label, itemDict2Str(recipeBook.getProducts(i)))
+		GridField.add(contentFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Label, itemDict2Str(recipeBook.getProducts(i)))
 		column += 1
-		GridField.add(mainFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Label, itemDict2Str(recipeBook.getEducts(i)))
+		GridField.add(contentFrame, row, column, RECIPE_BOOK_GRID_COLUMN_WIDTHS[column], GridField.Type.Label, itemDict2Str(recipeBook.getEducts(i)))
 
 def createItemsBalanceWindow(root):
 	global itemStock
 	root.title('Items Balance')
-	root.geometry(str(ITEM_STOCK_WINDOW_SIZE[0]) + 'x' + str(ITEM_STOCK_WINDOW_SIZE[1]))
+	root.geometry(f"{ITEM_STOCK_WINDOW_SIZE[0]}x{ITEM_STOCK_WINDOW_SIZE[1]}")
 	root.resizable(0, 1)
-	# Set up scrollable main frame:
-	outerFrame = tk.Frame(root)
-	outerFrame.pack(fill=tk.BOTH, expand=1)
-	outerCanvas = tk.Canvas(outerFrame)
+	# Set up main frame with fixed header frame and scrollable content frame:
+	contentFrame = tk.Frame(root)
+	contentFrame.pack(fill=tk.BOTH, expand=1)
+	headerFrame = tk.Frame(contentFrame)
+	headerFrame.pack(fill=tk.X)
+	mainFrame = tk.Frame(contentFrame)
+	mainFrame.pack(fill=tk.BOTH, expand=1)
+	outerCanvas = tk.Canvas(mainFrame)
 	outerCanvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-	outerScrollbar = tk.Scrollbar(outerFrame, orient=tk.VERTICAL, command=outerCanvas.yview)
+	outerScrollbar = tk.Scrollbar(mainFrame, orient=tk.VERTICAL, command=outerCanvas.yview)
 	outerScrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 	outerCanvas.configure(yscrollcommand=outerScrollbar.set)
 	outerCanvas.bind('<Configure>', lambda event: outerCanvas.configure(scrollregion=outerCanvas.bbox('all')))
-	mainFrame = tk.Frame(outerCanvas)
-	outerCanvas.create_window((0, 0), window=mainFrame, anchor='nw')
+	contentFrame = tk.Frame(outerCanvas)
+	outerCanvas.create_window((0, 0), window=contentFrame, anchor='nw')
 	# Create item stock grid field:
-	itemStock = ItemStock(mainFrame)
+	itemStock = ItemStock(contentFrame)
 	row = 0
-	column = 0
-	GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, ITEM_STOCK_GRID_COLUMN_NAMES[column])
-	column += 1
-	GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, ITEM_STOCK_GRID_COLUMN_NAMES[column])
-	column += 1
-	GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, ITEM_STOCK_GRID_COLUMN_NAMES[column])
+	for column, name in enumerate(ITEM_STOCK_GRID_COLUMN_NAMES):
+		GridField.add(headerFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.Header, name)
 	row = 0
 	for item in itemStock.getItems():
 		row += 1
 		column = 0
-		GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.Label, item)
+		GridField.add(contentFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.Label, item)
 		column += 1
-		GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.DynamicLabel, itemStock.getBalanceStrVar(item))
+		GridField.add(contentFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.DynamicLabel, itemStock.getBalanceStrVar(item))
 		column += 1
-		GridField.add(mainFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.DynamicLabel, itemStock.getBeltLevelStrVar(item))
+		GridField.add(contentFrame, row, column, ITEM_STOCK_GRID_COLUMN_WIDTHS[column], GridField.Type.DynamicLabel, itemStock.getBeltLevelStrVar(item))
 
 # TODO: use to improve init placement of windows
 # def centerWindow(root):
